@@ -1,35 +1,57 @@
-import nest_asyncio
+import os
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
+from langchain_core.prompts import ChatPromptTemplate
 from langchain.tools import tool
 import requests
 import pandas as pd
-import os
+from dotenv import load_dotenv
 
-# @tool("get_sentiment)", description="Return weather information for a given city", return_direct=False)
-def get_ticker_sentiment(company: str, news_num: int = 1000 ):
-        api_key = os.environ.get("POLYGON_API_KEY")
-        header = {"Authorization": str(api_key)}
-        params = {
-            "ticker": company,
-            "limit": news_num,
-            "order": "desc"
-        }
-        get_news_url = 'https://api.polygon.io/v2/reference/news'
-        response = requests.get(url=get_news_url, headers=header, params=params)
-
-        news_response = response.json()
-        news = news_response['results'][:25]
-        return news
+load_dotenv()
 
 
+@tool("get_ticker_sentiment", description="Get Stock News and its sentiment, you can also get up to 1000 news, can always get less too", return_direct=False)
+def get_ticker_sentiment(company: str, news_num: int = 30):
+    api_key = os.environ.get("POLYGON_API_KEY")
+    header = {"Authorization": str(api_key)}
+    params = {
+        "ticker": company,
+        "limit": news_num,
+        "order": "desc"
+    }
+    get_news_url = 'https://api.polygon.io/v2/reference/news'
+    response = requests.get(url=get_news_url, headers=header, params=params)
 
-# agent = create_agent(
-#     model="gemini-2.5-flash"
-#     tools=[get_weather],
-#     system_prompt="you are a good boy"
-# )
+    news_response = response.json()
+    news = news_response['results']
+    news_dict = {}
+    for idx, e in enumerate(news):
+        news_dict[idx] = {}
 
-print(get_ticker_sentiment(company="NVDA"))
+        publisher = e['publisher']["name"]
+        news_dict[idx]["publisher"] = publisher
+
+        title = e["title"]
+        news_dict[idx]["title"] = title
+
+        time = e["published_utc"]
+        news_dict[idx]["time"] = time
+
+        article_url = e["article_url"]
+        news_dict[idx]["article_url"] = article_url
+
+        insights = e["insights"]
+
+        for i in insights:
+            if i["ticker"] == company:
+                ticker = i["ticker"]
+                news_dict[idx]["ticker"] = ticker
+
+                sentiment = i["sentiment"]
+                news_dict[idx]["sentiment"] = sentiment
+
+                sentiment_reasoning = i["sentiment_reasoning"]
+                news_dict[idx]["sentiment_reasoning"] = sentiment_reasoning
 
     positive = sum(1 for v in news_dict.values() if v.get("sentiment") == "positive")
     negative = sum(1 for v in news_dict.values() if v.get("sentiment") == "negative")
