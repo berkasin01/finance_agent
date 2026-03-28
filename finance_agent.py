@@ -6,6 +6,7 @@ from langchain.tools import tool
 import requests
 import pandas as pd
 from dotenv import load_dotenv
+import yfinance as yf
 
 load_dotenv()
 
@@ -153,13 +154,48 @@ def get_short_interest(ticker: str):
         f"{change_str}"
     )
 
+@tool("get_stock_price", description="Get current and recent stock price data for a ticker. Returns current price, daily change, and key stats.")
+def get_stock_price(ticker: str):
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        hist = stock.history(period="5d")
+    except Exception as e:
+        return f"Failed to fetch price data for {ticker}: {e}"
+
+    if hist.empty:
+        return f"No price data found for {ticker}."
+
+    current = hist.iloc[-1]
+    prev = hist.iloc[-2] if len(hist) > 1 else None
+
+    change_str = ""
+    if prev is not None:
+        change = current['Close'] - prev['Close']
+        pct = (change / prev['Close']) * 100
+        direction = "+" if change > 0 else ""
+        change_str = f"Daily Change: {direction}{change:.2f} ({direction}{pct:.2f}%)"
+
+    return (
+        f"Price data for {ticker}:\n"
+        f"Current Price: ${current['Close']:.2f}\n"
+        f"Day High: ${current['High']:.2f}\n"
+        f"Day Low: ${current['Low']:.2f}\n"
+        f"Volume: {int(current['Volume']):,}\n"
+        f"{change_str}\n"
+        f"Market Cap: {info.get('marketCap', 'N/A'):,}\n"
+        f"52-Week High: ${info.get('fiftyTwoWeekHigh', 0):.2f}\n"
+        f"52-Week Low: ${info.get('fiftyTwoWeekLow', 0):.2f}\n"
+        f"P/E Ratio: {info.get('trailingPE', 'N/A')}"
+    )
+
 ##BUILD AGENT
 GEMINI_API_KEY = str(os.environ.get("GEMINI_API_KEY"))
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
 
 agent = create_agent(
     model= llm,
-    tools=[get_ticker_sentiment, get_fear_greed_index, get_short_interest],
+    tools=[get_ticker_sentiment, get_fear_greed_index, get_short_interest, get_stock_price],
     system_prompt="""You are a senior investment research analyst. Your job is to answer financial questions using the tools available to you.
 
 Rules:
@@ -173,7 +209,7 @@ Rules:
 
 
 response = agent.invoke(
-    {"messages": [{"role": "user", "content": "Give me a full breakdown on NVDA — news sentiment, market fear, and short interest."}]}
+    {"messages": [{"role": "user", "content": "Give me the full picture on NVDA - price, sentiment, fear levels, and short interest."}]}
 )
 print(response["messages"][-1].content)
 
