@@ -189,23 +189,25 @@ def get_stock_price(ticker: str):
         f"P/E Ratio: {info.get('trailingPE', 'N/A')}"
     )
 
-##BUILD AGENT
-## BUILD AGENT
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
 
-agent = create_agent(
-    model=llm,
-    tools=[get_ticker_sentiment, get_fear_greed_index, get_short_interest, get_stock_price],
-    system_prompt="""You are a senior investment research analyst. Your job is to answer financial questions using the tools available to you.
+## BUILD AGENT
+@st.cache_resource
+def build_agent():
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=st.secrets["GEMINI_API_KEY"]
+    )
+    return create_agent(
+        model=llm,
+        tools=[get_ticker_sentiment, get_fear_greed_index, get_short_interest, get_stock_price],
+        system_prompt="""You are a senior investment research analyst. Your job is to answer financial questions using the tools available to you.
 
 Rules:
 - Always use tools to get real data before forming an opinion. Never guess.
 - When analysing sentiment, report the sentiment score AND the reasoning behind it.
 - If a tool returns no data, say so clearly. Do not fabricate results.
 - Keep answers concise and data-driven. No filler.
-- When multiple articles exist, summarise the overall trend, not every article.""",
-)
+- When multiple articles exist, summarise the overall trend, not every article.""",)
 
 st.title("📈 Investment Research Agent")
 st.caption("Powered by LangChain, Gemini, Polygon, CNN Fear & Greed, NASDAQ, yfinance")
@@ -224,6 +226,7 @@ if prompt := st.chat_input("Ask me about any stock..."):
 
     with st.chat_message("assistant"):
         with st.spinner("Researching..."):
+            agent = build_agent()
             response = agent.invoke(
                 {"messages": [{"role": "user", "content": prompt}]}
             )
@@ -233,4 +236,3 @@ if prompt := st.chat_input("Ask me about any stock..."):
             st.markdown(reply)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
-
