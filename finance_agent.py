@@ -190,9 +190,9 @@ def get_stock_price(ticker: str):
     )
 
 ##BUILD AGENT
+## BUILD AGENT
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
-st.write("Key loaded:", bool(os.environ.get("GEMINI_API_KEY")))
 
 agent = create_agent(
     model=llm,
@@ -207,7 +207,6 @@ Rules:
 - When multiple articles exist, summarise the overall trend, not every article.""",
 )
 
-st.set_page_config(page_title="Investment Research Agent", page_icon="📈")
 st.title("📈 Investment Research Agent")
 st.caption("Powered by LangChain, Gemini, Polygon, CNN Fear & Greed, NASDAQ, yfinance")
 
