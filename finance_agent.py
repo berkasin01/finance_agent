@@ -65,25 +65,92 @@ def get_ticker_sentiment(company: str, news_num: int = 30):
     return summary
 
 
-@tool("get_fear_greed_index", description="Get the CNN Fear and Greed Index. Returns current value and recent trend.",
-      return_direct=False)
+@tool("get_fear_greed_index", description="Get the CNN Fear and Greed Index with current value and recent trend.")
 def get_fear_greed_index():
-    import pandas as pd
+    from datetime import datetime, timedelta
 
-    df = pd.read_csv("cnn_fear_and_greed_index.csv")
+    def get_label(score):
+        score = float(score)
+        if score <= 25: return "Extreme Fear"
+        elif score <= 45: return "Fear"
+        elif score <= 55: return "Neutral"
+        elif score <= 75: return "Greed"
+        else: return "Extreme Greed"
+
+    csv_path = "cnn_fear_and_greed_index.csv"
+    df = pd.read_csv(csv_path)
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date", ascending=False)
+
+    latest_date = df.iloc[0]["date"].date()
+    today = datetime.now().date()
+
+    if (today - latest_date) > timedelta(days=1):
+        try:
+            r = requests.get("https://production.dataviz.cnn.io/index/fearandgreed/graphdata")
+            data = r.json()
+            score = data["fear_and_greed"]["score"]
+
+            new_row = pd.DataFrame([{"date": today, "combined_value": round(score)}])
+            df = pd.concat([new_row, df], ignore_index=True)
+            df.to_csv(csv_path, index=False)
+        except:
+            pass
 
     latest = df.iloc[0]
     week_ago = df.iloc[5] if len(df) > 5 else df.iloc[-1]
     month_ago = df.iloc[22] if len(df) > 22 else df.iloc[-1]
 
     return (
-        f"Fear & Greed Index as of {latest['date'].strftime('%Y-%m-%d')}:\n"
-        f"Current: {latest['value']} ({latest['label']})\n"
-        f"5 days ago: {week_ago['value']} ({week_ago['label']})\n"
-        f"~1 month ago: {month_ago['value']} ({month_ago['label']})\n"
-        f"Trend: {'Improving' if latest['value'] > week_ago['value'] else 'Declining'}"
+        f"Fear & Greed Index as of {latest['date']}:\n"
+        f"Current: {latest['combined_value']} ({get_label(latest['combined_value'])})\n"
+        f"5 days ago: {week_ago['combined_value']} ({get_label(week_ago['combined_value'])})\n"
+        f"~1 month ago: {month_ago['combined_value']} ({get_label(month_ago['combined_value'])})\n"
+        f"Trend: {'Improving' if float(latest['combined_value']) > float(week_ago['combined_value']) else 'Declining'}"
+    )
+
+@tool("get_short_interest", description="Get short interest data for a stock ticker from NASDAQ. Returns current short interest, days to cover, and recent trend.")
+def get_short_interest(ticker: str):
+    import requests
+    import pandas as pd
+
+    url = f"https://api.nasdaq.com/api/quote/{ticker}/short-interest?assetclass=stocks"
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        js = resp.json()
+        rows = js["data"]["shortInterestTable"]["rows"]
+    except Exception as e:
+        return f"Failed to fetch short interest for {ticker}: {e}"
+
+    if not rows:
+        return f"No short interest data found for {ticker}."
+
+    df = pd.DataFrame(rows)
+    df['interest'] = df['interest'].str.replace(',', '').astype(int)
+    df['avgDailyShareVolume'] = df['avgDailyShareVolume'].str.replace(',', '').astype(int)
+    df['daysToCover'] = df['daysToCover'].astype(float)
+    df['settlementDate'] = pd.to_datetime(df['settlementDate'], format='%m/%d/%Y')
+    df = df.sort_values('settlementDate', ascending=False)
+
+    latest = df.iloc[0]
+    prev = df.iloc[1] if len(df) > 1 else None
+
+    change_str = ""
+    if prev is not None:
+        change = latest['interest'] - prev['interest']
+        pct = (change / prev['interest']) * 100 if prev['interest'] > 0 else 0
+        direction = "up" if change > 0 else "down"
+        change_str = f"Change from prior: {direction} {abs(change):,} shares ({abs(pct):.1f}%)"
+
+    return (
+        f"Short Interest for {ticker} as of {latest['settlementDate'].strftime('%Y-%m-%d')}:\n"
+        f"Short Interest: {latest['interest']:,} shares\n"
+        f"Avg Daily Volume: {latest['avgDailyShareVolume']:,}\n"
+        f"Days to Cover: {latest['daysToCover']}\n"
+        f"{change_str}"
     )
 
 ##BUILD AGENT
@@ -92,7 +159,7 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API
 
 agent = create_agent(
     model= llm,
-    tools=[get_ticker_sentiment, get_fear_greed_index],
+    tools=[get_ticker_sentiment, get_fear_greed_index, get_short_interest],
     system_prompt="""You are a senior investment research analyst. Your job is to answer financial questions using the tools available to you.
 
 Rules:
@@ -106,7 +173,7 @@ Rules:
 
 
 response = agent.invoke(
-    {"messages": [{"role": "user", "content": "Can you tell me how NVDA is doing, and shall I buy now? or shall I buy in the future or wait?"}]}
+    {"messages": [{"role": "user", "content": "Give me a full breakdown on NVDA — news sentiment, market fear, and short interest."}]}
 )
 print(response["messages"][-1].content)
 
