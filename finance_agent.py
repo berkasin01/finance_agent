@@ -92,7 +92,7 @@ llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API
 
 agent = create_agent(
     model= llm,
-    tools=[get_ticker_sentiment],
+    tools=[get_ticker_sentiment, get_fear_greed_index],
     system_prompt="""You are a senior investment research analyst. Your job is to answer financial questions using the tools available to you.
 
 Rules:
