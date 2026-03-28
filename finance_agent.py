@@ -1,6 +1,4 @@
 import streamlit as st
-st.set_page_config(page_title="Investment Research Agent", page_icon="📈")
-
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
