@@ -106,7 +106,7 @@ Rules:
 
 
 response = agent.invoke(
-    {"messages": [{"role": "user", "content": "What is the current sentiment on NVDA?"}]}
+    {"messages": [{"role": "user", "content": "Can you tell me how NVDA is doing, and shall I buy now? or shall I buy in the future or wait?"}]}
 )
 print(response["messages"][-1].content)
 
