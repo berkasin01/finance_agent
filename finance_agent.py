@@ -1,20 +1,19 @@
+import streamlit as st
+st.set_page_config(page_title="Investment Research Agent", page_icon="📈")
+
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import create_agent
-from langchain_core.prompts import ChatPromptTemplate
 from langchain.tools import tool
 import requests
 import pandas as pd
-from dotenv import load_dotenv
 import yfinance as yf
-import streamlit as st
 
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".venv"))
 
 
 @tool("get_ticker_sentiment", description="Get Stock News and its sentiment, you can also get up to 1000 news, can always get less too", return_direct=False)
 def get_ticker_sentiment(company: str, news_num: int = 30):
-    api_key = os.environ.get("POLYGON_API_KEY")
+    api_key = st.secrets["POLYGON_API_KEY"]
     header = {"Authorization": str(api_key)}
     params = {
         "ticker": company,
@@ -191,7 +190,7 @@ def get_stock_price(ticker: str):
     )
 
 ##BUILD AGENT
-GEMINI_API_KEY = str(os.environ.get("GEMINI_API_KEY"))
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
 st.write("Key loaded:", bool(os.environ.get("GEMINI_API_KEY")))
 
