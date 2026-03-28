@@ -7,8 +7,9 @@ import requests
 import pandas as pd
 from dotenv import load_dotenv
 import yfinance as yf
+import streamlit as st
 
-load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".venv"))
 
 
 @tool("get_ticker_sentiment", description="Get Stock News and its sentiment, you can also get up to 1000 news, can always get less too", return_direct=False)
@@ -192,9 +193,10 @@ def get_stock_price(ticker: str):
 ##BUILD AGENT
 GEMINI_API_KEY = str(os.environ.get("GEMINI_API_KEY"))
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
+st.write("Key loaded:", bool(os.environ.get("GEMINI_API_KEY")))
 
 agent = create_agent(
-    model= llm,
+    model=llm,
     tools=[get_ticker_sentiment, get_fear_greed_index, get_short_interest, get_stock_price],
     system_prompt="""You are a senior investment research analyst. Your job is to answer financial questions using the tools available to you.
 
@@ -204,12 +206,33 @@ Rules:
 - If a tool returns no data, say so clearly. Do not fabricate results.
 - Keep answers concise and data-driven. No filler.
 - When multiple articles exist, summarise the overall trend, not every article.""",
-    debug=True
 )
 
+st.set_page_config(page_title="Investment Research Agent", page_icon="📈")
+st.title("📈 Investment Research Agent")
+st.caption("Powered by LangChain, Gemini, Polygon, CNN Fear & Greed, NASDAQ, yfinance")
 
-response = agent.invoke(
-    {"messages": [{"role": "user", "content": "Give me the full picture on NVDA - price, sentiment, fear levels, and short interest."}]}
-)
-print(response["messages"][-1].content)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+if prompt := st.chat_input("Ask me about any stock..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Researching..."):
+            response = agent.invoke(
+                {"messages": [{"role": "user", "content": prompt}]}
+            )
+            reply = response["messages"][-1].content
+            if isinstance(reply, list):
+                reply = reply[0]["text"] if reply else ""
+            st.markdown(reply)
+
+    st.session_state.messages.append({"role": "assistant", "content": reply})
 
