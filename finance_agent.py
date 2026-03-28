@@ -64,6 +64,29 @@ def get_ticker_sentiment(company: str, news_num: int = 30):
 
     return summary
 
+
+@tool("get_fear_greed_index", description="Get the CNN Fear and Greed Index. Returns current value and recent trend.",
+      return_direct=False)
+def get_fear_greed_index():
+    import pandas as pd
+
+    df = pd.read_csv("cnn_fear_and_greed_index.csv")
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date", ascending=False)
+
+    latest = df.iloc[0]
+    week_ago = df.iloc[5] if len(df) > 5 else df.iloc[-1]
+    month_ago = df.iloc[22] if len(df) > 22 else df.iloc[-1]
+
+    return (
+        f"Fear & Greed Index as of {latest['date'].strftime('%Y-%m-%d')}:\n"
+        f"Current: {latest['value']} ({latest['label']})\n"
+        f"5 days ago: {week_ago['value']} ({week_ago['label']})\n"
+        f"~1 month ago: {month_ago['value']} ({month_ago['label']})\n"
+        f"Trend: {'Improving' if latest['value'] > week_ago['value'] else 'Declining'}"
+    )
+
+##BUILD AGENT
 GEMINI_API_KEY = str(os.environ.get("GEMINI_API_KEY"))
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=GEMINI_API_KEY)
 
