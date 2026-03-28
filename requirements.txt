@@ -4,5 +4,5 @@ langgraph
 pandas
 requests
 yfinance
-streamlit
+streamlit>=1.45.0
 python-dotenv
