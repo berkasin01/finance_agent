@@ -78,7 +78,7 @@ def get_fear_greed_index():
         elif score <= 75: return "Greed"
         else: return "Extreme Greed"
 
-    csv_path = "cnn_fear_and_greed_index.csv"
+    csv_path = "./cnn_fear_and_greed_index.csv"
     df = pd.read_csv(csv_path)
     df["date"] = pd.to_datetime(df["date"])
     df = df.sort_values("date", ascending=False)
