@@ -16,7 +16,7 @@ for batch_i in range(num_batches):
     start = batch_i * batch_size
     end = min(start + batch_size, total)
     batch = tickers[start:end]
-    print(f"\n=== Batch {batch_i+1}/{num_batches} — tickers {start+1} to {end} of {total} ===")
+    print(f"\n=== Batch {batch_i+1}/{num_batches} tickers {start+1} to {end} of {total} ===")
     for idx, t in enumerate(batch, start=start+1):
         print(f"[{idx}/{total}] Fetching {t}...", end="", flush=True)
         try:
