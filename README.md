@@ -1,6 +1,6 @@
 # 📈 Investment Research Agent
 [HERE IS THE LINK TO THE APP](https://financeagent-bottmvzfyresu9rrvojodd.streamlit.app/)
-Multi-tool AI agent that pulls real-time financial data and gives you a full picture on any stock. Built with LangChain and Gemini.
+Multi tool AI agent that pulls real-time financial data and gives you a full picture on any stock. Built with LangChain and Gemini.
 Ask it something like "Give me the full picture on NVDA" and it'll hit all 4 tools in parallel, then synthesise everything into one answer.
 ## What it does
 <img width="711" height="895" alt="Screenshot 2026-03-28 205334" src="https://github.com/user-attachments/assets/475a5677-c803-4538-aa6f-4209750f3769" />
